@@ -134,7 +134,7 @@ Const NMBR_TCAV     As Long    = 3          'Unique: Number of TCAV (Maximum is 
 #EndIf
  
 '* SOIL WATER CONTENT PROBE
-Const SENSOR_CS65X  As Boolean = FALSE      'Unique: CS650 or CS655: water content reflectometers for volumetric soil moisture. FALSE as default. 
+Const SENSOR_CS65X  As Boolean = FALSE      'Unique: CS650 or CS655: water content reflectometers for volumetric soil moisture. FALSE as default. If true, SENSOR_TDR must be set to FALSE.
 #If (SENSOR_CS65X) Then  
 Const NMBR_CS65x    As Long    = 3          'Unique: Number of CS650, or CS655 sensors (Maximum is 3, 2 as default, NMBR_CS65x = NMBR_HFP = NMBR_TCAV).
 Const CS65SDI_ADR1             = 4          'Unique: SDI address for CS65X #1 (4 as default).
@@ -145,6 +145,19 @@ Const CS65SDI_ADR2             = 5          'Unique: SDI address for CS65X #2 (5
 Const CS65SDI_ADR3             = 6          'Unique: SDI address for CS65X #3 (6 as default).
 #EndIf
 #EndIf '(SENSOR_CS65X)
+
+'* SOIL WATER CONTENT PROBE
+Const SENSOR_TDR As Boolean = FALSE        'Unique: Acclima TDR series water content reflectometers for volumetric soil moisture. FALSE as default. If true, SENSOR_CS65x must be set to FALSE.
+#If (SENSOR_TDR) Then
+Const NMBR_CS65x    As Long    = 3         'Unique: Number of TDR series sensors (Maximum is 3, 2 as default, NMBR_TDR = NMBR_HFP = NMBR_TCAV).
+Const TDRSDI_ADR1              = 4         'Unique: SDI address for TDR #1 (4 as default).
+#If (NMBR_CS65x > 1) Then
+Const TDRSDI_ADR2              = 5         'Unique: SDI address for TDR #2 (5 as default).
+#EndIf
+#If (NMBR_CS65x > 2) Then
+Const TDRSDI_ADR3              = 6         'Unique: SDI address for TDR #3 (6 as default).
+#EndIf
+#EndIf '(SENSOR_TDR)
 
 '* SOIL HEAT FLUX PLATE
 Const SENSOR_HFP01 As Boolean = FALSE      'Unique: HFP01 soil heat flux plates. FALSE as default. If TRUE, SENSOR_HFPSC must be set to FALSE
@@ -176,6 +189,7 @@ EndConstTable
 
 '* Composite Boolean variables for variables above
 Const SENSOR_Rn            = (SENSOR_CNR4 OR SENSOR_NR01 OR SENSOR_SN500)
+Const SENSOR_SWC           = (SENSOR_CS65X OR SENSOR_TDR)
 Const SENSOR_HFP           = (SENSOR_HFP01 OR SENSOR_HFPSC)
 Const SCAN_INTERVAL_WEIGHT = SLW_SCN_INTV/(60*1000*OUTPUT_INTV)           'Used to calculate the fraction of day time in an scan interval  
 '************* END OF USER-DEFINED CONFIGURATION CONSTANTS ***************
@@ -384,6 +398,24 @@ Const CS65X_SDI_PORT = U3       'SDI port.
 'CR6 AG      Shield #3 (clear)
  #EndIf 
 #EndIf '(SENSOR_CS65X)
+
+#If (SENSOR_TDR) Then
+Const TDR_SDI_PORT = U3       'SDI port.
+'*** Beginning of TDR wiring 
+'CR1000X U3      SDI-12 data #1 (blue)
+'CR1000X 12V     SDI-12 power #1 (red)
+'CR1000X G       SDI-12 data/power reference #1 (white)
+ #If (NMBR_CS65x > 1) Then 
+'CR1000X U3      SDI-12 data #2 (blue)
+'CR1000X 12V     SDI-12 power #2 (red)
+'CR1000X G       SDI-12 data/power reference #2 (white)
+ #EndIf 
+ #If (NMBR_CS65x > 2) Then 
+'CR1000X U3      SDI-12 data #3 (blue)
+'CR1000X 12V     SDI-12 power #3 (red)
+'CR1000X G       SDI-12 data/power reference #3 (white)
+ #EndIf 
+#EndIf '(SENSOR_TDR)
 
 #If (SENSOR_CNF4) Then 
 Const CNF4_TACHMTR_INPUT = U5 
@@ -742,7 +774,7 @@ Alias TimeStamp_AmeriFluxFormat(2) = TIMESTAMP_END
 Dim stn_conf_array_file      As Long             'Filehandle for the configuration data stored in the CPU.
 Dim stn_conf_array_file_size As Long             'Size of the station configuration file stored on the CPU.
 
-Const NMBR_STN_VAR       = (17 - 1*SENSOR_GPS - 3*SENSOR_FW - 3*((SENSOR_HFP) AND (SENSOR_CS65X)))       'Number of station variables below
+Const NMBR_STN_VAR       = (17 - 1*SENSOR_GPS - 3*SENSOR_FW - 3*((SENSOR_HFP) AND (SENSOR_SWC)))       'Number of station variables below
 Public stn_conf_array(NMBR_STN_VAR)              'These station parameters are entered using the datalogger keypad while program is running after compiled.
 Alias stn_conf_array(1)  = sonic_azimuth         'Azimuth angle of compass direction to which CSAT points (degrees) (see Section 3.1.1 CSAT3A Azimuth in the OPEC manual).
 Alias stn_conf_array(2)  = latitude              'Latitude (degrees)
@@ -794,7 +826,7 @@ Units separation_y_FW = m
 Units FW_diameter     = m
 #EndIf
 
-#If (SENSOR_HFP AND SENSOR_CS65X) Then
+#If (SENSOR_HFP AND SENSOR_SWC) Then
 Alias stn_conf_array(18 - 1*SENSOR_GPS - 3*SENSOR_FW) = soil_bulk_density 'Soil bulk density (kg/m^3)
 Alias stn_conf_array(19 - 1*SENSOR_GPS - 3*SENSOR_FW) = Cds               'Specific heat of dry mineral soil [J/(kg K)] [Table 8.2 on page 118 in Campbell & Norman (1998)]
 Alias stn_conf_array(20 - 1*SENSOR_GPS - 3*SENSOR_FW) = thick_abv_SHFP    'Thickness of soil above soil heat flux plate (m)
@@ -2843,7 +2875,32 @@ Dim cs65x_raw(3)                        'Hold CS65X raw variables
 Units cs65x_wc = %
 Units cs65x_ec = dS m-1
 Units cs65x_tmpr = deg C
+'********************* END OF CS6xx VARIABLES ****************************
+#EndIf '(SENSOR_CS65X)
 
+#If (SENSOR_TDR) Then 
+'*************************************************************************
+'*****               BEGINNING OF TDR VARIABLES                      *****
+'*************************************************************************
+'*** Beginning of TDR constants and variables
+Public tdr_wc(NMBR_CS65x)             'Volumetric soil water content.
+Public tdr_tmpr(NMBR_CS65x)           'Soil temperature.
+Public tdr_E(NMBR_CS65x)              'Electrical permittivity.
+Public tdr_bulkEC(NMBR_CS65x)         'Bulk electrical conductivity.
+Public tdr_poreEC(NMBR_CS65x)         'Pore water electrical conductivity.
+Dim tdr_raw(5)                        'Hold TDR raw variables
+Units tdr_wc = %
+Units tdr_tmpr = deg C
+Units tdr_E = unitless
+Units tdr_bulkEC = dS m-1
+Units tdr_poreEC = dS m-1
+'********************* END OF TDR VARIABLES   ****************************
+#EndIf '(SENSOR_TDR)
+
+'*************************************************************************
+'*****               BEGINNING OF SWC VARIABLES                      *****
+'*************************************************************************
+#If (SENSOR_SWC) Then
 'Soil water contents measured using CS655 w/ or w/o soil temperature correction will be moved to this array  
 Dim SWC_array(NMBR_CS65x)              'Soil water contents measured from                
 Alias SWC_array(1) = SWC_1_1_1
@@ -2855,11 +2912,11 @@ Alias SWC_array(3) = SWC_1_1_3
 #EndIf 
 
 Units SWC_array = % 
-'********************* END OF CS6xx VARIABLES ****************************
-#EndIf '(SENSOR_CS65X)
+'********************* END OF SWC VARIABLES ******************************
+#EndIf '(SENSOR_SWC)
 
 
-#If (SENSOR_CS65X OR SENSOR_TCAV) Then 
+#If (SENSOR_SWC OR SENSOR_TCAV) Then 
 '*************************************************************************
 '*****      BEGINNING OF ADDITIONAL VARIABLES FOR CS65X AND TCAV     *****
 '*************************************************************************
@@ -2869,10 +2926,10 @@ Alias TS_array(2) = TS_1_1_2              'The use of this variable depends on t
 Alias TS_array(3) = TS_1_1_3              'The use of this variable depends on the NUMBR_TCAV or NUMBR_CS6xx
 Units TS_array = deg C   
 '************ END OF ADDITIONAL VARIABLES FOR CS65X AND TCAV *************
-#EndIf '(SENSOR_CS65X OR SENSOR_TCAV)
+#EndIf '(SENSOR_SWC OR SENSOR_TCAV)
 
 
-#If (SENSOR_HFP AND SENSOR_CS65X) Then
+#If (SENSOR_HFP AND SENSOR_SWC) Then
 '*************************************************************************
 'BEGINNING OF VARIABLES FOR CALCULATION OF SOIL HEAT FLUX AT SOIL SURFACE 
 '*************************************************************************
@@ -2914,10 +2971,10 @@ Units  SG = W m-2
 ' Variables used to calculate the number of seconds from the beginning of the program to the end of the first averaging interval (time interval offset)
 Dim Offset_intv_delta_ht_storage          'time interval offset
 '** END OF VARIABLES FOR CALCULATION OF SOIL HEAT FLUX AT SOIL SURFACE ***
-#EndIf '(SENSOR_HFP AND SENSOR_CS65X))
+#EndIf '(SENSOR_HFP AND SENSOR_SWC))
 
 
-#If (SENSOR_Rn AND SENSOR_HFP AND SENSOR_CS65X) Then
+#If (SENSOR_Rn AND SENSOR_HFP AND SENSOR_SWC) Then
 '*************************************************************************
 '*****            BEGINNING OF ENERGY BALANCE VARIABLES              *****
 '*************************************************************************
@@ -3015,7 +3072,7 @@ DisplayMenu ("System Control", TRUE)
     MenuItem ("GPS Height",    height_GPS16X)   
     #EndIf 
 
-    #If (SENSOR_HFP AND SENSOR_CS65X) Then
+    #If (SENSOR_HFP AND SENSOR_SWC) Then
     MenuItem ("Bulk Density", soil_bulk_density)
     MenuItem ("C_dry_soil",   Cds)
     MenuItem ("HFP Depth",    thick_abv_SHFP)
@@ -3208,7 +3265,7 @@ DataTable (Flux_AmeriFluxFormat, TRUE, FLUX_SIZE_CPU)
   Sample (1, H,             IEEE4)  'Sensible heat flux (derived from sonic temperature flux with SND correction after coordinate rotations and freq corrections)
   Sample (1, H_SSITC_TEST,  IEEE4)   'Results of the Steady State and Integral Turbulence Characteristics for LE according to Foken et al (2004)   
   
-  #If (SENSOR_HFP AND SENSOR_CS65X)  Then
+  #If (SENSOR_HFP AND SENSOR_SWC)  Then
   Sample (1, G_surface,     IEEE4)  'Soil heat flux at the ground surface
   FieldNames ("G")  
   Sample (1, SG,            IEEE4)  'Heat storage in the soil above the soil heat flux plates between the beginning and end of average interval 
@@ -3253,7 +3310,7 @@ DataTable (Flux_AmeriFluxFormat, TRUE, FLUX_SIZE_CPU)
   Sample (1, T_SONIC_SIGMA,  IEEE4)  'Standard deviation of sonic temperature.
   Sample (1, PBLH,           IEEE4)  'Planetary boundary layer height.
 
-  #If (SENSOR_CS65X OR SENSOR_TCAV) Then 
+  #If (SENSOR_SWC OR SENSOR_TCAV) Then 
    'MET_SOIL
   #EndIf 
   
@@ -3270,8 +3327,8 @@ DataTable (Flux_AmeriFluxFormat, TRUE, FLUX_SIZE_CPU)
   #EndIf
   #EndIf
   
-  #If ((NOT SENSOR_TCAV) AND SENSOR_CS65X)  Then
-  Average (1, TS_1_1_1, IEEE4, slowsequence_disable_f)           'Soil temperature from CS65x 
+  #If ((NOT SENSOR_TCAV) AND SENSOR_SWC)  Then
+  Average (1, TS_1_1_1, IEEE4, slowsequence_disable_f)           'Soil temperature from CS65x or TDR
   FieldNames("TS_1_1_1")
   #If (NMBR_CS65x > 1) Then
   Average (1, TS_1_1_2, IEEE4, slowsequence_disable_f) 
@@ -3283,8 +3340,8 @@ DataTable (Flux_AmeriFluxFormat, TRUE, FLUX_SIZE_CPU)
   #EndIf
   #EndIf
   
-  #If (SENSOR_CS65X) Then
-  Average (1, SWC_1_1_1, IEEE4, slowsequence_disable_f)         'Measured using CS65x. Volumetric soil water w/ temperature correction
+  #If (SENSOR_SWC) Then
+  Average (1, SWC_1_1_1, IEEE4, slowsequence_disable_f)         'Measured using CS65x or TDR. Volumetric soil water w/ temperature correction
   FieldNames ("SWC_1_1_1")
   #If (NMBR_CS65x > 1) Then
   Average (1, SWC_1_1_2, IEEE4, slowsequence_disable_f)
@@ -3294,7 +3351,7 @@ DataTable (Flux_AmeriFluxFormat, TRUE, FLUX_SIZE_CPU)
   Average (1, SWC_1_1_3, IEEE4, slowsequence_disable_f)
   FieldNames ("SWC_1_1_3")
   #EndIf   
-  #EndIf '(SENSOR_CS65X)
+  #EndIf '(SENSOR_SWC)
 
   #If (SENSOR_Rn OR SENSOR_CS301 OR SENSOR_CS310 OR SENSOR_CS320) Then 
   'MET_RAD
@@ -3369,13 +3426,13 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   Sample (1, NETRAD, IEEE4)
   #EndIf
 
-  #If (SENSOR_HFP AND SENSOR_CS65X)  Then
+  #If (SENSOR_HFP AND SENSOR_SWC)  Then
   Sample (1, G_surface, IEEE4)                                'Soil heat flux at the ground surface
   FieldNames ("G")
   Sample (1, SG, IEEE4)                                       'The change in heat storage above soil heat flux plates over the averaging interval 
   #EndIf
    
-  #If (SENSOR_Rn AND SENSOR_HFP AND SENSOR_CS65X) Then
+  #If (SENSOR_Rn AND SENSOR_HFP AND SENSOR_SWC) Then
   Sample (1, energy_closure, IEEE4)                           'Energy closure
   #If (SENSOR_TE525) Then  
   Sample (1, truefalse (2 + poor_energy_closure_flg), String) 'Flag indicates the drift of zero and span
@@ -3507,7 +3564,7 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   #EndIf
   #EndIf '(CDM_VOLT_116)
 
-  #If(SENSOR_TCAV OR SENSOR_CS65X)  Then
+  #If(SENSOR_TCAV OR SENSOR_SWC)  Then
   '*** Soil temperature
   #EndIf      
   #If (SENSOR_TCAV) Then
@@ -3523,8 +3580,8 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   #EndIf
   #EndIf '(SENSOR_TCAV)
   
-  #If ((NOT SENSOR_TCAV) AND SENSOR_CS65X)  Then
-  Average (1, TS_1_1_1, IEEE4, slowsequence_disable_f)       'Soil temperature from CS65x
+  #If ((NOT SENSOR_TCAV) AND SENSOR_SWC)  Then
+  Average (1, TS_1_1_1, IEEE4, slowsequence_disable_f)       'Soil temperature from CS65x or TDR
   FieldNames ("TS_1_1_1")
   #If (NMBR_CS65x > 1) Then
   Average (1, TS_1_1_2, IEEE4, slowsequence_disable_f)
@@ -3534,11 +3591,11 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   Average (1, TS_1_1_3, IEEE4, slowsequence_disable_f)
   FieldNames ("TS_1_1_3")
   #EndIf
-  #EndIf '((NOT SENSOR_TCAV) AND SENSOR_CS65X) 
+  #EndIf '((NOT SENSOR_TCAV) AND SENSOR_SWC) 
   
-  #If (SENSOR_CS65X) Then
+  #If (SENSOR_SWC) Then
   'Soil moisture 
-  Average (1, SWC_1_1_1, IEEE4, slowsequence_disable_f)     'CS65x volumetric soil water content.  
+  Average (1, SWC_1_1_1, IEEE4, slowsequence_disable_f)     'CS65x or TDR volumetric soil water content.  
   FieldNames ("SWC_1_1_1")
   #If (NMBR_CS65x > 1) Then
   Average (1, SWC_1_1_2, IEEE4, slowsequence_disable_f)
@@ -3548,7 +3605,7 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   Average (1, SWC_1_1_3, IEEE4, slowsequence_disable_f)
   FieldNames ("SWC_1_1_3")
   #EndIf  
-  #EndIf '(SENSOR_CS65X)
+  #EndIf '(SENSOR_SWC)
         
   #If (SENSOR_TCAV AND SENSOR_CS65X)  Then
   Average (1, cs65x_tmpr(1), IEEE4, slowsequence_disable_f)  'Soil temperature from CS65x
@@ -3564,7 +3621,7 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   #EndIf '(SENSOR_TCAV AND SENSOR_CS65X) 
   
   #If (SENSOR_CS65X) Then
-  Average (1, cs65x_ec(1), IEEE4, slowsequence_disable_f)     'Electrical conductivity.
+  Average (1, cs65x_ec(1), IEEE4, slowsequence_disable_f)     'Electrical conductivity from CS65x.
   FieldNames ("cs65x_ec_1_1_1")
   #If (NMBR_CS65x > 1) Then
   Average (1, cs65x_ec(2), IEEE4, slowsequence_disable_f)
@@ -3576,12 +3633,60 @@ DataTable (Flux_CSFormat, TRUE, FLUX_SIZE_CPU)
   #EndIf
   #EndIf '(SENSOR_CS65X)
 
+  #If (SENSOR_TCAV AND SENSOR_TDR)  Then
+  Average (1, tdr_tmpr(1), IEEE4, slowsequence_disable_f)  'Soil temperature from TDR
+  FieldNames ("TS_TDR_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_tmpr(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_TDR_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_tmpr(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_TDR_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_TCAV AND SENSOR_TDR) 
+  
+  #If (SENSOR_TDR) Then
+  Average (1, tdr_E(1), IEEE4, slowsequence_disable_f)  'Soil permittivity from TDR
+  FieldNames ("TDR_E_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_E(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_E_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_E(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_E_1_1_3")
+  #EndIf
+  
+  Average (1, tdr_bulkEC(1), IEEE4, slowsequence_disable_f)  'Soil bulk electrical conductivity
+  FieldNames ("TDR_bulkEC_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_bulkEC(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_bulkEC_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_bulkEC(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_bulkEC_1_1_3")
+  #EndIf
+
+  Average (1, tdr_poreEC(1), IEEE4, slowsequence_disable_f)  'Pore water electrical conductivity
+  FieldNames ("TDR_poreEC_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_poreEC(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_poreEC_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_poreEC(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_poreEC_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_TCAV AND SENSOR_TDR) 
+
   #If (SENSOR_HFP) Then
   '*** soil heat flux plat data 
   Sample (NMBR_HFP, G_plate_1_1_1, IEEE4)                     'Heat flux through a soil heat flux plate
   #EndIf
 
-  #If (SENSOR_HFP AND SENSOR_CS65X) Then
+  #If (SENSOR_HFP AND SENSOR_SWC) Then
   Sample (NMBR_HFP, G_1_1_1,  IEEE4)       'Soil heat flux at the ground surface
   Sample (NMBR_HFP, SG_1_1_1, IEEE4)       'The soil heat flux into soil as heat storage above soil heat flux plates over an averaging interval
   #EndIf
@@ -6190,7 +6295,7 @@ BeginProg
       FW_diameter     = FW3_DIA           'Diameter of fine wire thermocouple
    #EndIf '(SENSOR_FW)
 
-   #If (SENSOR_HFP AND SENSOR_CS65X) Then
+   #If (SENSOR_HFP AND SENSOR_SWC) Then
     soil_bulk_density = 1300.0            'Default soil bulk density (kg/m^3)
     Cds               =  870.0            'Default specific heat of dry mineral soil [J/(kg K)] [Table 8.2 on page 118 in Campbell & Norman (1998)]
     thick_abv_SHFP    =    0.16           'Default depth of HFP01 or HFP01SC below soil surface (m)
@@ -6296,7 +6401,7 @@ BeginProg
     EndIf 
  #EndIf '(SENSOR_FW)
 
- #If (SENSOR_HFP AND SENSOR_CS65X) Then
+ #If (SENSOR_HFP AND SENSOR_SWC) Then
    If  ((soil_bulk_density > 1800.0) OR (soil_bulk_density < 600.0)) Then 
       soil_bulk_density = 1300.0                                          'Default soil bulk density (kg/m^3)
    EndIf 
@@ -6306,7 +6411,7 @@ BeginProg
    If ((thick_abv_SHFP > 0.30) OR (thick_abv_SHFP < 0.0)) Then 
       thick_abv_SHFP = 0.16                                               'Default depth of HFP01 or HFP01SC below soil surface (m)
    EndIf 
- #EndIf '(SENSOR_HFP AND SENSOR_CS65X)
+ #EndIf '(SENSOR_HFP AND SENSOR_SWC)
 
   '*** Calculate zero displacement height, roughness length, and aerodynamic height for use inside the scan
   Call Displacement_roughness_heights (surface_type, displacement_user, roughness_user, height_canopy, height_measurement, d, z0, z)
@@ -6386,7 +6491,7 @@ BeginProg
     '12 bytes each of two TimeStamp, 9 bytes for each variable in IEEE4 or Long, 41 uncoditial variables
     bytes_rcd_AmeriFluxFormat = 12*2 + 9*41
 
-    #If (SENSOR_HFP AND SENSOR_CS65X)  Then
+    #If (SENSOR_HFP AND SENSOR_SWC)  Then
       bytes_rcd_AmeriFluxFormat = bytes_rcd_AmeriFluxFormat + 9*2           'G and SG
     #EndIf
       
@@ -6394,15 +6499,15 @@ BeginProg
       bytes_rcd_AmeriFluxFormat = bytes_rcd_AmeriFluxFormat + 9*3          'TA_1_1_3, RH_1_1_3, and T_DP_1_1_3
     #EndIf
     
-    #If (SENSOR_CS65X) Then
-      bytes_rcd_AmeriFluxFormat = bytes_rcd_AmeriFluxFormat + 9*NMBR_CS65x 'SWC_1_1_1, _1_1_2, and/or _1_1_3. Measured using CS65X 
+    #If (SENSOR_SWC) Then
+      bytes_rcd_AmeriFluxFormat = bytes_rcd_AmeriFluxFormat + 9*NMBR_CS65x 'SWC_1_1_1, _1_1_2, and/or _1_1_3. Measured using CS65X or TDR
     #EndIf
 
     #If (SENSOR_TCAV) Then
       bytes_rcd_AmeriFluxFormat = bytes_rcd_AmeriFluxFormat + 9*NMBR_TCAV  'TS_1_1_1, _1_1_2, and/or _1_1_3.  
     #EndIf
 
-    #If ((NOT SENSOR_TCAV) AND SENSOR_CS65X)  Then
+    #If ((NOT SENSOR_TCAV) AND SENSOR_SWC)  Then
       bytes_rcd_AmeriFluxFormat = bytes_rcd_AmeriFluxFormat + 9*NMBR_CS65x 'TS_1_1_1, _1_1_2, and/or _1_1_3.  
     #EndIf    
 
@@ -6453,11 +6558,11 @@ BeginProg
       bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*1             'NETRAD,
     #EndIf
 
-    #If (SENSOR_HFP AND SENSOR_CS65X))  Then
+    #If (SENSOR_HFP AND SENSOR_SWC))  Then
       bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*2             'G and SG
     #EndIf
    
-    #If (SENSOR_Rn AND SENSOR_HFP AND SENSOR_CS65X) Then
+    #If (SENSOR_Rn AND SENSOR_HFP AND SENSOR_SWC) Then
       bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*1             'energy_closure
       #If (SENSOR_TE525) Then  
       bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*1             'poor_energy_closure_flg
@@ -6514,11 +6619,11 @@ BeginProg
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_TCAV      'TS_1_1_1, _1_1_2, and/or _1_1_3 depending on NMBR_TCAV
    #EndIf
 
-   #If ((NOT SENSOR_TCAV) AND SENSOR_CS65X)  Then
+   #If ((NOT SENSOR_TCAV) AND SENSOR_SWC)  Then
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_CS65x     'TS_1_1_1, _1_1_2 and/or _1_1_3 depending on NMBR_CS65x 
    #EndIf
    
-   #If (SENSOR_CS65X) Then
+   #If (SENSOR_SWC) Then
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_CS65x     'SWC_1_1_1, _1_1_2, and _1_1_3 depending on NMBR_CS65x
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_CS65x     'cs65x_ec_1_1_1, _1_1_2,and _1_1_3 depending on NMBR_CS65x 
    #EndIf
@@ -6528,7 +6633,7 @@ BeginProg
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_HFP       'G_plate_1_1_1, _1_1_2, and _1_1_3 depending on NMBR_HFP 
    #EndIf
    
-   #If (SENSOR_HFP AND SENSOR_CS65X) Then
+   #If (SENSOR_HFP AND SENSOR_SWC) Then
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_HFP       'G_1_1_1, _1_1_2, and _1_1_3 depending on NMBR_HFP 
      bytes_rcd_flux_CSFormat = bytes_rcd_flux_CSFormat + 4*NMBR_HFP       'SG_1_1_1, _1_1_2, and _1_1_3 depending on NMBR_HFP 
    #EndIf
@@ -6695,7 +6800,7 @@ BeginProg
   '***  Read date and time from CR6 for the first soil heat flux through ground surface  
    RealTime(realtime_array(1))
 
- #If (SENSOR_HFP AND SENSOR_CS65X) Then
+ #If (SENSOR_HFP AND SENSOR_SWC) Then
    ' Variables used to calculate the number of seconds from the beginning of the program to the end of the first averaging interval (time interval offset)
    Offset_intv_delta_ht_storage = ((3600.0*realtime_array(4) + 60*realtime_array(5) + realtime_array(6)) MOD (60*OUTPUT_INTV)) 'result in seconds
  #EndIf
@@ -8957,7 +9062,7 @@ EndIf '(comp_cov_3d.Output(1, 1) AND comp_cov_3d_5min.Output(1, 1))
 
      GetRecord (G_plate_1_1_1, stats_SHF, 1)
 
-     #If (SENSOR_CS65X) Then
+     #If (SENSOR_SWC) Then
           
       For i = 1 To NMBR_HFP
         SG_rep (i) = ((Tsoil_current (i) - Tsoil_prev (i))*Cds*soil_bulk_density + _
@@ -8977,7 +9082,7 @@ EndIf '(comp_cov_3d.Output(1, 1) AND comp_cov_3d_5min.Output(1, 1))
        Move (Tsoil_prev (1), NMBR_TCAV, Tsoil_current(1), NMBR_TCAV)
      #EndIf
      
-     #If ((NOT SENSOR_TCAV) AND (SENSOR_CS65X)) Then
+     #If ((NOT SENSOR_TCAV) AND (SENSOR_SWC)) Then
        Move (Tsoil_prev (1), NMBR_CS65x, Tsoil_current(1), NMBR_CS65x)
      #EndIf
 
@@ -9003,7 +9108,7 @@ EndIf '(comp_cov_3d.Output(1, 1) AND comp_cov_3d_5min.Output(1, 1))
      #EndIf '(SENSOR_TE525)        
        
    #EndIf '(SENSOR_Rn)
- #EndIf '(SENSOR_CS65X) 
+ #EndIf '(SENSOR_SWC) 
 
  EndIf '(stats_SHF.Output(1,1)) 
 #EndIf '(SENSOR_HFP)
@@ -9561,7 +9666,7 @@ Scan (SLW_SCN_INTV, mSec, 7, 0)
   #EndIf '(NMBR_TCAV <= 2)
   Move(TS_1_1_1, NMBR_TCAV, Tsoil(1), NMBR_TCAV)                          'To store the data in AmeriFlux standard  
     
-   #If (SENSOR_HFP AND SENSOR_CS65X) Then
+   #If (SENSOR_HFP AND SENSOR_SWC) Then
      AvgRun (Tsoil_current(1), NMBR_TCAV, Tsoil(1), NMBR_SOIL_T_WTR_DEL_SAMPLES)
 
      For i_slow = 1 To NMBR_TCAV
@@ -9612,7 +9717,58 @@ Scan (SLW_SCN_INTV, mSec, 7, 0)
     EndIf  
 
  Next i_slow 
+'**************** End of CS65X measurements ******************************
+#EndIf '(SENSOR_CS65X)
+    
+
+#If (SENSOR_TDR) Then
+'*****                  TDR measurements                             *****
+  SDI12Recorder (tdr_raw(1), TDR_SDI_PORT, TDRSDI_ADR1, "M!", 1, 0, -1)
+  tdr_wc(1)     = tdr_raw(1)/100.0 'scale % --> v/v for calculations
+  tdr_tmpr(1)   = tdr_raw(2)
+  tdr_E(1)      = tdr_raw(3)
+  tdr_bulkEC(1) = tdr_raw(4)/1000.0 'scale uS/cm --> dS/m
+  tdr_poreEC(1) = tdr_raw(5)/1000.0
+  #If (NMBR_CS65x > 1) Then
+  SDI12Recorder (tdr_raw(1), TDR_SDI_PORT, TDRSDI_ADR2, "M!", 1, 0, -1)
+  tdr_wc(2)     = tdr_raw(1)/100.0                                      
+  tdr_tmpr(2)   = tdr_raw(2)
+  tdr_E(2)      = tdr_raw(3)
+  tdr_bulkEC(2) = tdr_raw(4)/1000.0
+  tdr_poreEC(2) = tdr_raw(5)/1000.0
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  SDI12Recorder (tdr_raw(1), TDR_SDI_PORT, TDRSDI_ADR3, "M!", 1, 0, -1)
+  tdr_wc(3)     = tdr_raw(1)/100.0                                      
+  tdr_tmpr(3)   = tdr_raw(2)
+  tdr_E(3)      = tdr_raw(3)
+  tdr_bulkEC(3) = tdr_raw(4)/1000.0
+  tdr_poreEC(3) = tdr_raw(5)/1000.0
+  #EndIf
       
+  'Soil temperature values measured from TDR are used to report soil temperature if a TCAV sensor is not used  
+  #If (SENSOR_TDR AND (NOT SENSOR_TCAV)) Then
+  Move (TS_1_1_1, NMBR_CS65x, tdr_tmpr(1), NMBR_CS65x)
+  #EndIf 
+  
+  'Correct volumetric soil moisture content using TDR soil temperature  
+  For i_slow = 1 To NMBR_CS65x
+    'SWC_1_1_1 if NMBR_CS65x =1 and  SWC_1_1_1  and SWC_1_1_2 if NMBR_CS65x = 2  
+    If ((tdr_wc(i_slow) > 0.05) AND  (tdr_wc(i_slow) <> NaN)) Then    
+      SWC_array(i_slow) = tdr_wc(i_slow)*(1.32 - 1.6*tdr_wc(i_slow) + 2.4* tdr_wc(i_slow)*tdr_wc(i_slow)) _
+                        + tdr_tmpr(i_slow)*tdr_wc(i_slow)*(0.0029 + 0.0014*tdr_wc(i_slow) - 0.0044*tdr_wc(i_slow)*tdr_wc(i_slow)) _
+                        - 0.0002*tdr_tmpr(i_slow) - 0.046    'Section 8.3.5 Temperature dependence and correction, manual for CS650 & CS655 Water Content Reflectometer (Rev 11/2021)
+    Else 
+      SWC_array(i_slow) = tdr_wc(i_slow)
+    
+    EndIf  
+  Next i_slow     
+  '**************** End of TDR measurements ********************************
+  #EndIf '(SENSOR_TDR)
+
+
+#If (SENSOR_SWC) Then
+'*****                  SWC measurements                             *****  
  #If (SENSOR_HFP) Then    
    AvgRun (soil_wtr_current(1), NMBR_CS65x, SWC_array(1), NMBR_SOIL_T_WTR_DEL_SAMPLES)
     
@@ -9631,15 +9787,23 @@ Scan (SLW_SCN_INTV, mSec, 7, 0)
          EndIf
        Next  i_slow 
     #EndIf '(SENSOR_CS65X AND (NOT SENSOR_TCAV))
+    #If (SENSOR_TDR AND (NOT SENSOR_TCAV)) Then
+      AvgRun (Tsoil_current(1), NMBR_CS65x, tdr_tmpr(1), NMBR_SOIL_T_WTR_DEL_SAMPLES)
+
+      For i_slow = 1 To NMBR_CS65x
+        If (Tsoil_prev (i_slow) = NaN) Then                              'As soon as program starts
+          Tsoil_prev(i_slow) = tdr_tmpr(i_slow)
+        EndIf
+      Next  i_slow 
+    #EndIf '(SENSOR_TDR AND (NOT SENSOR_TCAV))
  #EndIf '(SENSOR_HFP) 
       
  'Convert volumetric fraction to percent 
   For i_slow = 1 To NMBR_CS65x
      SWC_array(i_slow) = 100*SWC_array(i_slow)                            'Conversion into percent for output 
   Next i_slow 
-
-'**************** End of CS65X measurements ******************************
-#EndIf '(SENSOR_CS65X)
+  '**************** End of SWC measurements ********************************
+  #EndIf '(SENSOR_SWC)
     
 
 #If (SENSOR_CS320 OR SENSOR_CS301) Then
@@ -9934,7 +10098,7 @@ For i_slow = 1 To NMBR_STN_VAR
        EndIf        
     #EndIf '(SENSOR_FW)
   
-    #If (SENSOR_HFP AND SENSOR_CS65X)) Then
+    #If (SENSOR_HFP AND SENSOR_SWC)) Then
       If (soil_bulk_density > 1800.0) OR (soil_bulk_density <600.0) Then 
          soil_bulk_density = stn_conf_array_prev (18 - 1*SENSOR_GPS -3*SENSOR_FW) 'Set back to previous value 
       EndIf 
@@ -9944,7 +10108,7 @@ For i_slow = 1 To NMBR_STN_VAR
       If (thick_abv_SHFP > 0.30) OR (thick_abv_SHFP < 0.0) Then 
          thick_abv_SHFP = stn_conf_array_prev (20 - 1*SENSOR_GPS -3*SENSOR_FW)     'Set back to previous value 
       EndIf 
-    #EndIf '(SENSOR_HFP AND SENSOR_CS65X))
+    #EndIf '(SENSOR_HFP AND SENSOR_SWC))
 
       Calfile (stn_conf_array(1), NMBR_STN_VAR, "CPU:stn_conf_array.dat", 0)       'Store the new values to the file.
       Move(stn_conf_array_prev(1), NMBR_STN_VAR , stn_conf_array(1), NMBR_STN_VAR) 'Update stn_conf_array_prev()
