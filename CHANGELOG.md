@@ -6,6 +6,10 @@
   Acclima TDR-series soil reflectometers. Sensors use identical input channel and
   SDI-12 sensor addresses as default CS655 option. If TCAV is not used, sensors
   also provide soil temperature measurements.
+* Adds new option for zero to six Acclima TDR-series soil sensors for profile measurements.
+  Sensors must be sequentially addressed with a maximum address of 9. 
+  Data is acquired independently of gas flux and energy balance, and is stored in
+  separate data table *Soil_Profile*.
 
 ## 2.01 (2022-07-21)
 

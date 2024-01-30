@@ -31,6 +31,7 @@ ConstTable (Const_Table)
 '* PROGRAM FUNCTION CONSTANTS
 Const SCN_INTV                 = 100         'Unique: measurement rate (ms): 40 ms (25 Hz), 50 ms (20 Hz), 100 ms (10 Hz), 200 ms (5 Hz), or 1000 ms (1 Hz)
 Const SLW_SCN_INTV             = 5000        'Unique: slow sequence measurement rate (ms) >3000 ms and <6000ms (Note: SDI-12 sensors slow for sub-second intervals)
+Const PROF_SCN_INTV            = 15          'Unique: soil profile measurement rate (sec)
 Const OUTPUT_INTV              = 30          'Unique: online flux data output interval (minutes).
 Const DAY_FLUX_CRD             = 30          'Unique: number of days of Flux_AmeriFluxFormat, Flux_CSFormat, Flux_Notes table data to store in each file on the MicroSD card. Number of files stored depends on card size.
 Const DAY_TSRS_CRD             = 1           'Unique: number of days of Time_Series table data to store in each file on the card. Number of files stored depends on card size.
@@ -183,6 +184,13 @@ Const HFP_OHM_3  As Float     = 95         'Unique: Heater resistance of HFP01SC
 Const CAL_INTERVAL            = 1440       'Unique: HFP01SC insitu calibration interval (minutes) (Recommended >360 minutes. Only applicable to HFP01SC plates).
 #EndIf '(SENSOR_HFPSC)
 #EndIf '(SENSOR_HFP01 OR SENSOR_HFPSC)
+
+'* PROFILE SOIL SENSORS
+Const PROFILE_TDR As Boolean = FALSE       'Unique: Acclima TDR series water content reflectometers profile. FALSE as default.
+#If (PROFILE_TDR) Then
+Const NMBR_PROF    As Long     = 3         'Unique: Number of TDR profile sensors (Maximum is 6, 3 as default, Must be sequentially addressed to no greater than 9).
+Const PROF_SDI_ADR             = 7         'Unique: starting SDI address for TDR profile sensors (7 as default). Must be <= (10-NMBR_PROF).
+#EndIf '(PROFILE_TDR)
 
 EndConstTable
 'End of Constants Customization Section
@@ -666,6 +674,14 @@ Const SN500_SDI_PORT = C3   'SDI input port.
 'G       SDI-12 Ground (black if SN1086 or later and clear if SN1085 or earlier)
 '        Shield #1 (clear if SN1086 or later and N/A if SN1085 or earlier))
 #EndIf  
+
+#If (PROFILE_TDR) Then
+Const PROF_SDI_PORT = C3       'SDI port.
+'*** Beginning of CS65X wiring 
+'CR1000X C3      SDI-12 data #1 (blue)
+'CR1000X 12V     SDI-12 power #1 (red, external 12V power recommend due to simultaneous trigger)
+'CR1000X G       SDI-12 data/power reference #1 (white)
+#EndIf '(PROFILE_TDR)
 
 #If (CDM_VOLT_116) Then 
   
@@ -3054,6 +3070,28 @@ Dim m_SI111, b_SI111         'Multiplier and offset in equation to calculate tem
 #EndIf '(CDM_VOLT_116)
 
 
+#If (PROFILE_TDR) Then 
+'*************************************************************************
+'*****               BEGINNING OF TDR PROFILE VARIABLES              *****
+'*************************************************************************
+'*** Beginning of TDR constants and variables
+Public profile_wc(NMBR_PROF)          'Volumetric soil water content.
+Public profile_tmpr(NMBR_PROF)        'Soil temperature.
+Public profile_E(NMBR_PROF)           'Electrical permittivity.
+Public profile_bulkEC(NMBR_PROF)      'Bulk electrical conductivity.
+Public profile_poreEC(NMBR_PROF)      'Pore water electrical conductivity.
+Dim prof_raw(5)                       'Hold TDR raw variables
+Dim ii 'loop iterator
+Dim profile_f(NMBR_PROF)
+Units profile_wc = %
+Units profile_tmpr = deg C
+Units profile_E = unitless
+Units profile_bulkEC = dS m-1
+Units profile_poreEC = dS m-1
+'********************* END OF TDR PROFILE VARIABLES   ********************
+#EndIf '(PROFILE_TDR)
+
+
 '*************************************************************************
 '*****                    BEGINNING DISPLAY MENU                     *****
 '*************************************************************************
@@ -4075,6 +4113,93 @@ DataTable (Flux_Notes, TRUE, FLUX_SIZE_CPU)
 EndTable 'Flux_Notes
 '*********************** END OF FLUX_NOTES TABLE  ************************
 
+
+#If (PROFILE_TDR) Then
+'*************************************************************************
+'*****                    SOIL_PROFILE TABLE                         *****
+'*************************************************************************
+DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
+  DataInterval (0, OUTPUT_INTV, Min, 0)
+  TableFile ("CRD:"&Status.SerialNumber(1,1)&"_Soil_Profile_", 64, -1, 0,DAY_FLUX_CRD, day, 0, 0)
+
+  Average (NMBR_PROF, profile_wc(1), IEEE4, profile_f(1))    'Soil water content
+  #If (NMBR_PROF > 5) Then
+    FieldNames("SWC_2_2_1,SWC_2_2_2,SWC_2_2_3,SWC_2_2_4,SWC_2_2_5,SWC_2_2_6")
+  #ElseIf (NMBR_PROF > 4) Then
+    FieldNames("SWC_2_2_1,SWC_2_2_2,SWC_2_2_3,SWC_2_2_4,SWC_2_2_5")
+  #ElseIf (NMBR_PROF > 3) Then
+    FieldNames("SWC_2_2_1,SWC_2_2_2,SWC_2_2_3,SWC_2_2_4")
+  #ElseIf (NMBR_PROF > 2) Then
+    FieldNames("SWC_2_2_1,SWC_2_2_2,SWC_2_2_3")
+  #ElseIf (NMBR_PROF > 1) Then
+    FieldNames("SWC_2_2_1,SWC_2_2_2")
+  #Else
+    FieldNames("SWC_2_2_1")
+  #EndIf
+
+  Average (NMBR_PROF, profile_tmpr(1), IEEE4, profile_f(1))    'Soil temperature
+  #If (NMBR_PROF > 5) Then
+    FieldNames("TS_TDR_2_2_1,TS_TDR_2_2_2,TS_TDR_2_2_3,TS_TDR_2_2_4,TS_TDR_2_2_5,TS_TDR_2_2_6")
+  #ElseIf (NMBR_PROF > 4) Then
+    FieldNames("TS_TDR_2_2_1,TS_TDR_2_2_2,TS_TDR_2_2_3,TS_TDR_2_2_4,TS_TDR_2_2_5")
+  #ElseIf (NMBR_PROF > 3) Then
+    FieldNames("TS_TDR_2_2_1,TS_TDR_2_2_2,TS_TDR_2_2_3,TS_TDR_2_2_4")
+  #ElseIf (NMBR_PROF > 2) Then
+    FieldNames("TS_TDR_2_2_1,TS_TDR_2_2_2,TS_TDR_2_2_3")
+  #ElseIf (NMBR_PROF > 1) Then
+    FieldNames("TS_TDR_2_2_1,TS_TDR_2_2_2")
+  #Else
+    FieldNames("TS_TDR_2_2_1")
+  #EndIf
+
+  Average (NMBR_PROF, profile_E(1), IEEE4, profile_f(1))    'Soil permittivity
+  #If (NMBR_PROF > 5) Then
+    FieldNames("TDR_E_2_2_1,TDR_E_2_2_2,TDR_E_2_2_3,TDR_E_2_2_4,TDR_E_2_2_5,TDR_E_2_2_6")
+  #ElseIf (NMBR_PROF > 4) Then
+    FieldNames("TDR_E_2_2_1,TDR_E_2_2_2,TDR_E_2_2_3,TDR_E_2_2_4,TDR_E_2_2_5")
+  #ElseIf (NMBR_PROF > 3) Then
+    FieldNames("TDR_E_2_2_1,TDR_E_2_2_2,TDR_E_2_2_3,TDR_E_2_2_4")
+  #ElseIf (NMBR_PROF > 2) Then
+    FieldNames("TDR_E_2_2_1,TDR_E_2_2_2,TDR_E_2_2_3")
+  #ElseIf (NMBR_PROF > 1) Then
+    FieldNames("TDR_E_2_2_1,TDR_E_2_2_2")
+  #Else
+    FieldNames("TDR_E_2_2_1")
+  #EndIf
+
+  Average (NMBR_PROF, profile_bulkEC(1), IEEE4, profile_f(1))    'Soil bulk electrical conductivity
+  #If (NMBR_PROF > 5) Then
+    FieldNames("TDR_bulkEC_2_2_1,TDR_bulkEC_2_2_2,TDR_bulkEC_2_2_3,TDR_bulkEC_2_2_4,TDR_bulkEC_2_2_5,TDR_bulkEC_2_2_6")
+  #ElseIf (NMBR_PROF > 4) Then
+    FieldNames("TDR_bulkEC_2_2_1,TDR_bulkEC_2_2_2,TDR_bulkEC_2_2_3,TDR_bulkEC_2_2_4,TDR_bulkEC_2_2_5")
+  #ElseIf (NMBR_PROF > 3) Then
+    FieldNames("TDR_bulkEC_2_2_1,TDR_bulkEC_2_2_2,TDR_bulkEC_2_2_3,TDR_bulkEC_2_2_4")
+  #ElseIf (NMBR_PROF > 2) Then
+    FieldNames("TDR_bulkEC_2_2_1,TDR_bulkEC_2_2_2,TDR_bulkEC_2_2_3")
+  #ElseIf (NMBR_PROF > 1) Then
+    FieldNames("TDR_bulkEC_2_2_1,TDR_bulkEC_2_2_2")
+  #Else
+    FieldNames("TDR_bulkEC_2_2_1")
+  #EndIf
+
+  Average (NMBR_PROF, profile_poreEC(1), IEEE4, profile_f(1))    'Soil pore water electrical conductivity
+  #If (NMBR_PROF > 5) Then
+    FieldNames("TDR_poreEC_2_2_1,TDR_poreEC_2_2_2,TDR_poreEC_2_2_3,TDR_poreEC_2_2_4,TDR_poreEC_2_2_5,TDR_poreEC_2_2_6")
+  #ElseIf (NMBR_PROF > 4) Then
+    FieldNames("TDR_poreEC_2_2_1,TDR_poreEC_2_2_2,TDR_poreEC_2_2_3,TDR_poreEC_2_2_4,TDR_poreEC_2_2_5")
+  #ElseIf (NMBR_PROF > 3) Then
+    FieldNames("TDR_poreEC_2_2_1,TDR_poreEC_2_2_2,TDR_poreEC_2_2_3,TDR_poreEC_2_2_4")
+  #ElseIf (NMBR_PROF > 2) Then
+    FieldNames("TDR_poreEC_2_2_1,TDR_poreEC_2_2_2,TDR_poreEC_2_2_3")
+  #ElseIf (NMBR_PROF > 1) Then
+    FieldNames("TDR_poreEC_2_2_1,TDR_poreEC_2_2_2")
+  #Else
+    FieldNames("TDR_poreEC_2_2_1")
+  #EndIf
+EndTable
+'*********************** END OF DIAGNOSTIC TABLE *************************
+#EndIf '(PROFILE_TDR)
+  
 
 '*************************************************************************
 '*****                  TIME SERIES DATA TABLE                       *****
@@ -10342,5 +10467,25 @@ Next i_slow
     slowsequence_finished_f = TRUE
     
 NextScan 'SLW_SCN_INTV
+
+#If (PROFILE_TDR) Then
+SlowSequence
+Scan (PROF_SCN_INTV, Sec, 3, 0)
+  Move(profile_f,NMBR_PROF,FALSE,1)
+  
+  For ii = 1 To NMBR_PROF
+    SDI12Recorder (prof_raw(1), PROF_SDI_PORT, (PROF_SDI_ADR+ii-1), "M!", 1, 0, -1)
+    profile_wc(ii)     = prof_raw(1)
+    profile_tmpr(ii)   = prof_raw(2)
+    profile_E(ii)      = prof_raw(3)
+    profile_bulkEC(ii) = prof_raw(4)/1000.0 'scale uS/cm --> dS/m
+    profile_poreEC(ii) = prof_raw(5)/1000.0
+
+    If (prof_raw(1) = NAN) Then profile_f(ii) = True
+  Next
+
+  CallTable (Soil_Profile)
+NextScan 'PROF_SCN_INTV
+#EndIf '(PROFILE_TDR)
 EndProg
 '*************************************************************************

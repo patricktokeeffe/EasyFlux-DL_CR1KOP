@@ -11,6 +11,8 @@ Additional hardware and features provided by this version include:
 
 * Ability to use Acclima TDR series sensors for soil water content and, if soil thermocouple (TCAV) is not used, also soil temperature.
   Functionally equivalent to deploying CS650 or CS655 sensors, except for slight differences in data table outputs.
+* Support for up to six Acclima TDR series sensors deployed independently of the tower, for example, in a vertical profile application.
+  Sensors have a separate user-defined scan interval and separate data table with user-defined output interval.
 
 
 ## Requirements 
