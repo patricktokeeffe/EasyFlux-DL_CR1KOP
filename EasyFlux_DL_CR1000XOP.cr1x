@@ -3004,10 +3004,10 @@ Dim m_SI111, b_SI111         'Multiplier and offset in equation to calculate tem
 '*****          BEGINNING OF LTAR_CORE CONSTANTS AND VARIABLES         *****
 '*************************************************************************
 Dim ltar_core_out(4)
-'Mean horizontal wind speed (WVc(1))
-'mean wind vector magnitude (WVc(2))
-'resultant mean wind direction (WVc(3))
-'standard deviation of wind direction (WVc(4)).  Standard deviation Is calculated using the Campbell Scientific wind speed weighted algorithm. 
+Units ltar_core_out(1) = m/s              'Mean horizontal wind speed (WVc(1))
+                                          'mean wind vector magnitude (WVc(2))
+Units ltar_core_out(3) = decimal degrees  'resultant mean wind direction (WVc(3))
+                                          'standard deviation of wind direction (WVc(4)).  Standard deviation Is calculated using the Campbell Scientific wind speed weighted algorithm. 
 DataTable(comp_ltar_core,True,1)
   TableHide
   DataInterval(0,LTAR_INTV,Min,1)
