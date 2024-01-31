@@ -36,6 +36,8 @@ Const DAY_FLUX_CRD             = 30          'Unique: number of days of Flux_Ame
 Const DAY_TSRS_CRD             = 1           'Unique: number of days of Time_Series table data to store in each file on the card. Number of files stored depends on card size.
 Const NTCH_FRQ_SLW As Long     = 60          'Unique: slowsequence analog measurement integration time, 60 for 60Hz (e.g. in US, Canada, etc.) or 50 for 50Hz (e.g. in Europe, China, etc.)
 Const ONE_FL_TABLE As Boolean  = FALSE       'Unique: whether or not all half-hourly or hourly data in Flux_CSFormat and Flux_Notes are stored in one table (FALSE as default).
+Const LTAR_CORE    As Boolean  = FALSE       'Unique: whether or not to output LTAR_CORE data table, for LTAR Common Observation Repository.
+Const LTAR_INTV    As Long     = 15          'Unique: output interval (minutes) of table LTAR_CORE, if enabled.
 
 '* GAS ANALYZER AND SONIC ANEMOMETER
 Const IRGASON       As Boolean = TRUE        'Unique: IRGASON. TRUE as default. If TRUE, CSAT3A_EC150 must be set to FALSE 
@@ -2997,6 +2999,24 @@ Dim m_SI111, b_SI111         'Multiplier and offset in equation to calculate tem
 #EndIf '(CDM_VOLT_116)
 
 
+#If (LTAR_CORE) Then
+'*************************************************************************
+'*****          BEGINNING OF LTAR_CORE CONSTANTS AND VARIABLES         *****
+'*************************************************************************
+Dim ltar_core_out(4)
+'Mean horizontal wind speed (WVc(1))
+'mean wind vector magnitude (WVc(2))
+'resultant mean wind direction (WVc(3))
+'standard deviation of wind direction (WVc(4)).  Standard deviation Is calculated using the Campbell Scientific wind speed weighted algorithm. 
+DataTable(comp_ltar_core,True,1)
+  TableHide
+  DataInterval(0,LTAR_INTV,Min,1)
+  WindVector (1, Uy, Ux, IEEE4, sonic_disable_f, 0, 1, 2)
+EndTable
+'********************* END OF LTAR_CORE VARIABLES   **********************
+#EndIf '(LTAR_CORE)
+
+
 '*************************************************************************
 '*****                    BEGINNING DISPLAY MENU                     *****
 '*************************************************************************
@@ -3969,6 +3989,49 @@ DataTable (Flux_Notes, TRUE, FLUX_SIZE_CPU)
   FieldNames ("buff_depth_Max")
 EndTable 'Flux_Notes
 '*********************** END OF FLUX_NOTES TABLE  ************************
+
+
+#If (LTAR_CORE) Then
+'*************************************************************************
+'*****                  LTAR CORE DATA TABLE                         *****
+'*************************************************************************
+DataTable (LTAR_CORE, TRUE, FLUX_SIZE_CPU)
+  DataInterval (0, OUTPUT_INTV, Min, 0)
+  TableFile ("CRD:"&Status.SerialNumber(1,1)&"_LTAR_CORE_", 64, -1, 0,DAY_FLUX_CRD, day, 0, 0)
+  '*** Beginning of Phase 1 measurements ***
+  Average (1, T_amb, IEEE4, irga_amb_tmpr_f)
+  FieldNames ("AirTemperature")          'deg C
+  Sample (1, ltar_core_out(1), IEEE4)  'm/s
+  FieldNames ("WindSpeed")
+  Sample (1, ltar_core_out(3), IEEE4)  'Degrees wrt True North
+  FieldNames ("WindDirection")
+  Average (1, RH, IEEE4, (irga_disable_f OR sonic_disable_f OR (RH > 102))
+  FieldNames ("RelativeHumidity")
+  #If (SENSOR_TE525) Then
+  Totalize (1, P, IEEE4, 0)             'Precipitation (mm)
+  FieldNames ("Precipitation")
+  #EndIf
+  Average (1, press_amb, IEEE4, irga_amb_press_f)
+  FieldNames("AirPressure") 'verify kPa
+  #If (SENSOR_CS310) Then
+  Average (1, PPFD_IN, IEEE4, slowsequence_disable_f)
+  FieldNames ("PAR")
+  #EndIf  
+  #If (SENSOR_Rn OR SENSOR_CS301 OR SENSOR_CS320) Then
+  Average (1, SW_IN, IEEE4, slowsequence_disable_f)  
+  FieldNames ("ShortWaveIn")
+  #EndIf
+  #If (SENSOR_Rn) Then
+  Average (1, LW_IN, IEEE4, slowsequence_disable_f)
+  FieldNames ("LongWaveIn")
+  #EndIf
+  Average (1, V_batt, IEEE4, slowsequence_disable_f)
+  FieldNames ("BatteryVoltage")
+  Average (1, T_panel,  IEEE4, FALSE)
+  FieldNames ("LoggerTemperature") 
+EndTable
+'*********************** END OF LTAR_Core TABLE *************************
+#EndIf '(LTAR_CORE)
 
 
 '*************************************************************************
@@ -8151,6 +8214,15 @@ If (scan_count >= (OFFSET + MAX_LAG)) Then
   CallTable comp_cov_3d_5min                                              'for Steady State Test
   CallTable comp_cov_3d                                                   'for half-hourly data
 
+  #If (LTAR_CORE) Then
+  CallTable comp_ltar_core                                                'for 15-min wind vector
+  If (comp_ltar_core.Output(1, 1)) Then
+    GetRecord (ltar_core_out, comp_ltar_core, 1)
+    ltar_core_out(3) = (sonic_azimuth - ltar_core_out(3) + 360) MOD 360 'transform to compass convention
+  EndIf
+  CallTable LTAR_CORE
+  #EndIf
+  
   '***** The data for Steady State Test (SST)
   If (comp_cov_3d_5min.Output(1, 1)) Then
     GetRecord (Ux_Avg_SST, comp_cov_3d_5min, 1)
