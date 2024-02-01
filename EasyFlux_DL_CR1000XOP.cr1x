@@ -36,8 +36,8 @@ Const OUTPUT_INTV              = 30          'Unique: online flux data output in
 Const DAY_FLUX_CRD             = 30          'Unique: number of days of Flux_AmeriFluxFormat, Flux_CSFormat, Flux_Notes table data to store in each file on the MicroSD card. Number of files stored depends on card size.
 Const DAY_TSRS_CRD             = 1           'Unique: number of days of Time_Series table data to store in each file on the card. Number of files stored depends on card size.
 Const NTCH_FRQ_SLW As Long     = 60          'Unique: slowsequence analog measurement integration time, 60 for 60Hz (e.g. in US, Canada, etc.) or 50 for 50Hz (e.g. in Europe, China, etc.)
-Const ONE_FL_TABLE As Boolean  = FALSE       'Unique: whether or not all half-hourly or hourly data in Flux_CSFormat and Flux_Notes are stored in one table (FALSE as default).
-Const BIOMET_TABLE As Boolean  = FALSE       'Unique: whether or not to output 5-min biomet table (FALSE as default).
+Const ONE_FL_TABLE As Boolean  = TRUE       'Unique: whether or not all half-hourly or hourly data in Flux_CSFormat and Flux_Notes are stored in one table (FALSE as default).
+Const BIOMET_TABLE As Boolean  = TRUE       'Unique: whether or not to output 5-min biomet table (FALSE as default).
 
 '* GAS ANALYZER AND SONIC ANEMOMETER
 Const IRGASON       As Boolean = TRUE        'Unique: IRGASON. TRUE as default. If TRUE, CSAT3A_EC150 must be set to FALSE 
@@ -50,11 +50,11 @@ Const CSAT_TYP_3AH As Boolean  = FALSE       'Unique: CSAT3AH (heated sonic anem
 #EndIf 
 
 '* GPS
-Const SENSOR_GPS   As Boolean  = FALSE       'Unique: GPS16X-HVS GPS receiver with integrated antenna (FALSE as default).
-Const UTC_OFST                 = -7          'Unique: The local standard time, in hours, from UTC/GMT. The time in Logan, UT, US is 7 hours behind UTC/GMT.
+Const SENSOR_GPS   As Boolean  = TRUE        'Unique: GPS16X-HVS GPS receiver with integrated antenna (FALSE as default).
+Const UTC_OFST                 = -8          'Unique: The local standard time, in hours, from UTC/GMT. The time in Logan, UT, US is 7 hours behind UTC/GMT.
 
 '* PERIPHERAL
-Const CDM_VOLT_116 As Boolean  = FALSE        'Unique: A CDM-A/VOLT116 is being used with the CR1000X (FALSE as default. Required for full suite of energy balance sensors). 
+Const CDM_VOLT_116 As Boolean  = TRUE        'Unique: A CDM-A/VOLT116 is being used with the CR1000X (FALSE as default. Required for full suite of energy balance sensors). 
 #If (CDM_VOLT_116) Then  
 Const SN_CDM_VOLT  As Long     = 0000        'Unique: CDM-A/VOLT116 serial number. 
 Const MODEL_CDMVLT             = VOLT116     'Unique: CDM-A/VOLT Model: VOLT116 or CDM_A116.
@@ -67,7 +67,7 @@ Const SENSOR_FW    As Boolean  = FALSE       'Unique: FW05, FW1, FW3, or other f
 
 '* TEMP/RH PROBE
 Const SENSOR_HYGRO As Boolean  = FALSE       'Unique: HygroVUE10 temperature and relative humidity sensor (FALSE as default).
-Const SENSOR_T_RH As Boolean   = FALSE       'Unique: HMP155A or EE08: temperature and relative humidity probe (FALSE as Default).
+Const SENSOR_T_RH As Boolean   = TRUE        'Unique: HMP155A or EE08: temperature and relative humidity probe (FALSE as Default).
 #If (SENSOR_HYGRO) Then 
 Const HYGROSDI_ADR             = 1           'Unique: HygroVUE10 SDI address (1 as default).
 #ElseIf (SENSOR_T_RH) Then 
@@ -78,9 +78,9 @@ Const RH_OFST      As Float    = 0.0         'Unique: offset for RH:            
 #EndIf 
 
 '* RAIN GAGE
-Const SENSOR_TE525  As Boolean = FALSE      'Unique: TE525mm rain gauge. FALSE as default.
+Const SENSOR_TE525  As Boolean = TRUE       'Unique: TE525mm rain gauge. FALSE as default.
 #If (SENSOR_TE525) Then  
-Const TE525_MULT    As Float   = 0.1        'Unique: multiplier for TE525MM =0.1 mm/tip, TE525 = 0.254 mm/tip, TE525WS = 0.254 mm/tip, TE525WS (w/ 8 in funnel) = 0.1459 mm/tip.   
+Const TE525_MULT    As Float   = 0.254        'Unique: multiplier for TE525MM =0.1 mm/tip, TE525 = 0.254 mm/tip, TE525WS = 0.254 mm/tip, TE525WS (w/ 8 in funnel) = 0.1459 mm/tip.   
 #EndIf 
 
 '*PYRANOMETER
@@ -95,7 +95,7 @@ Const CS320SDI_ADR             = 2          'Unique: SDI address for CS320 (2 as
 #EndIf
  
 '* QUANTUM SENSOR
-Const SENSOR_CS310 As Boolean  = FALSE      'Unique: CS310 Quantum Sensor.
+Const SENSOR_CS310 As Boolean  = TRUE       'Unique: CS310 Quantum Sensor.
 #If (SENSOR_CS310) Then 
 Const QUNTM_MULT As Float      = 100        'Unique: Multiplier [(umolPhoton m-2 s-1)/mV]. 
 #EndIf 
@@ -124,15 +124,15 @@ Const LW_IN_SNSTVT As Float    = 8.50       'Unique: NR01/CNR4 sensitivity of up
 Const LWOUT_SNSTVT As Float    = 7.09       'Unique: NR01/CNR4 sensitivity of downward facing pyrgeometer as reported on sensor calibration sheet [uV/(W m-2)].
 #EndIf
 
-Const SENSOR_SN500 As Boolean  = FALSE       'Unique: SN500SS 4-way net radiometer. FALSE as default. If true, SENSOR_CNR4, _NR01, _CS301, _CS320, and _CS310 must be set to FALSE.
+Const SENSOR_SN500 As Boolean  = TRUE       'Unique: SN500SS 4-way net radiometer. FALSE as default. If true, SENSOR_CNR4, _NR01, _CS301, _CS320, and _CS310 must be set to FALSE.
 #If (SENSOR_SN500) Then 
-Const SN500SDI_ADR             = 3          'Unique: SDI address for SN500 (3 as default). 
+Const SN500SDI_ADR             = "A"          'Unique: SDI address for SN500 (3 as default). 
 #EndIf
 
 '* TCAV SOIL TEMPERATURE PROBE
-Const SENSOR_TCAV   As Boolean = FALSE      'Unique: TCAV type E thermocouple averaging soil temperature probes (FALSE as default).
+Const SENSOR_TCAV   As Boolean = TRUE       'Unique: TCAV type E thermocouple averaging soil temperature probes (FALSE as default).
 #If (SENSOR_TCAV)   Then
-Const NMBR_TCAV     As Long    = 3          'Unique: Number of TCAV (Maximum is 3. 2 as default, NMBR_TCAV = NMBR_CS65x = NMBR_HFP).
+Const NMBR_TCAV     As Long    = 1          'Unique: Number of TCAV (Maximum is 3. 2 as default, NMBR_TCAV = NMBR_CS65x = NMBR_HFP).
 #EndIf
  
 '* SOIL WATER CONTENT PROBE
@@ -149,12 +149,12 @@ Const CS65SDI_ADR3             = 6          'Unique: SDI address for CS65X #3 (6
 #EndIf '(SENSOR_CS65X)
 
 '* SOIL WATER CONTENT PROBE
-Const SENSOR_TDR As Boolean = FALSE        'Unique: Acclima TDR series water content reflectometers for volumetric soil moisture. FALSE as default. If true, SENSOR_CS65x must be set to FALSE.
+Const SENSOR_TDR As Boolean = TRUE        'Unique: Acclima TDR series water content reflectometers for volumetric soil moisture. FALSE as default. If true, SENSOR_CS65x must be set to FALSE.
 #If (SENSOR_TDR) Then
 Const NMBR_CS65x    As Long    = 3         'Unique: Number of TDR series sensors (Maximum is 3, 2 as default, NMBR_TDR = NMBR_HFP = NMBR_TCAV).
-Const TDRSDI_ADR1              = 4         'Unique: SDI address for TDR #1 (4 as default).
+Const TDRSDI_ADR1              = 1         'Unique: SDI address for TDR #1 (4 as default).
 #If (NMBR_CS65x > 1) Then
-Const TDRSDI_ADR2              = 5         'Unique: SDI address for TDR #2 (5 as default).
+Const TDRSDI_ADR2              = 2         'Unique: SDI address for TDR #2 (5 as default).
 #EndIf
 #If (NMBR_CS65x > 2) Then
 Const TDRSDI_ADR3              = 6         'Unique: SDI address for TDR #3 (6 as default).
@@ -162,10 +162,10 @@ Const TDRSDI_ADR3              = 6         'Unique: SDI address for TDR #3 (6 as
 #EndIf '(SENSOR_TDR)
 
 '* SOIL HEAT FLUX PLATE
-Const SENSOR_HFP01 As Boolean = FALSE      'Unique: HFP01 soil heat flux plates. FALSE as default. If TRUE, SENSOR_HFPSC must be set to FALSE
+Const SENSOR_HFP01 As Boolean = TRUE       'Unique: HFP01 soil heat flux plates. FALSE as default. If TRUE, SENSOR_HFPSC must be set to FALSE
 Const SENSOR_HFPSC As Boolean = FALSE      'Unique: HFP01SC self-calibrating soil heat flux plates. FALSE as default. If TRUE, SENSOR_HFP01 must be set to FALSE
 #If (SENSOR_HFP01 OR SENSOR_HFPSC) Then  
-Const NMBR_HFP     As Long    = 3          'Unique: Number of HFP01 or HFP01SC sensors (Maximum is 3, 2 as default, NMBR_HFP = NMBR_TCAV = NMBR_CS65x).
+Const NMBR_HFP     As Long    = 2          'Unique: Number of HFP01 or HFP01SC sensors (Maximum is 3, 2 as default, NMBR_HFP = NMBR_TCAV = NMBR_CS65x).
 Const HFP_SNSTVT_1 As Float   = 62.0       'Unique: Sensitivity of HFP01/HFP01SC #1 as reported on sensor product certificate [uV/(W m-2)].
 #If (NMBR_HFP > 1) Then 
 Const HFP_SNSTVT_2 As Float   = 62.0       'Unique: Sensitivity of HFP01/HFP01SC #2 as reported on sensor product certificate [uV/(W m-2)].
@@ -187,10 +187,10 @@ Const CAL_INTERVAL            = 1440       'Unique: HFP01SC insitu calibration i
 #EndIf '(SENSOR_HFP01 OR SENSOR_HFPSC)
 
 '* PROFILE SOIL SENSORS
-Const PROFILE_TDR As Boolean = FALSE       'Unique: Acclima TDR series water content reflectometers profile. FALSE as default.
+Const PROFILE_TDR As Boolean = TRUE       'Unique: Acclima TDR series water content reflectometers profile. FALSE as default.
 #If (PROFILE_TDR) Then
-Const NMBR_PROF    As Long     = 3         'Unique: Number of TDR profile sensors (Maximum is 6, 3 as default, Must be sequentially addressed to no greater than 9).
-Const PROF_SDI_ADR             = 7         'Unique: starting SDI address for TDR profile sensors (7 as default). Must be <= (10-NMBR_PROF).
+Const NMBR_PROF    As Long     = 6         'Unique: Number of TDR profile sensors (Maximum is 6, 3 as default, Must be sequentially addressed to no greater than 9).
+Const PROF_SDI_ADR             = 3         'Unique: starting SDI address for TDR profile sensors (7 as default). Must be <= (10-NMBR_PROF).
 #EndIf '(PROFILE_TDR)
 
 EndConstTable
