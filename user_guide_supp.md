@@ -55,7 +55,7 @@ The default wiring for TDR series is substantially identical and shown in the ta
 
 This version of ***EasyFlux DL OP*** supports from zero to six additional Acclima TDR series sensors,
 for soil measurements independent of energy balance calculations (e.g. vertical profiling).
-Sensors are queried from a separate scan and data is optionally output to separate data table *Soil_Profile*.
+Sensors are queried from a separate scan and data is optionally output to separate data table *Flux_Extra*.
 The sensor SDI-12 addresses must be sequential and the starting address and quantity
 must be specified using unique program constants.
 
@@ -73,13 +73,17 @@ The default wiring uses the same SDI-12 input channel as soil water content refl
 
 ### 4.4 Output tables
 
-> The following revisions apply to section 4.4.
+> **NOTE:** the program constant to combine tables is `ONE_FL_TABLE ` (minor typo in user guide).
+
+A seventh data table (**Flux_Extra**) contains data fields from supplemental sensors, such as soil profile measurements.
+If the constant `ONE_FL_TABLE` is set to True, then output table **Flux_CSFormat** will also contain data fields normally reported in
+**Flux_Notes** and **Flux_Extra**, and those tables will not be created.
 
 For **Table 4-5: Data output tables**, insert this additional row:
 
 | Table name | Description | Recording interval | Memory on CR6 or CR1000X CPU | Memory on microSD card |
 |:-:|:-:|:-:|:-:|:-:|
-| Soil_Profile | Statistical data from soil profile measurements | OUTPUT_INTERVAL (default 30 min) | NUM_DAY_CPU (default 7 days) | Broken up into 30-day files; see Table 4-4 |
+| Flux_Extra | Additional statistical data not included in other *Flux* tables | OUTPUT_INTERVAL (default 30 min) | NUM_DAY_CPU (default 7 days) | Broken up into 30-day files; see Table 4-4 |
 
 For **Table 4-9: Data fields in the Flux_AmeriFluxFormat output table**:
 
@@ -95,7 +99,7 @@ For **Table 4-10: Data fields in the Flux_CSFormat output table**:
 | | TDR_bulkEC_1_1_x | dS m-1 | Soil bulk electrical conductivity; x of 1 to 3 is an index for the number of soil sensors | If TDR is used |
 | | TDR_poreEC_1_1_x | dS m-1 | Soil pore water electrical conductivity; x of 1 to 3 is an index for the number of soil sensors | If TDR is used |
 
-Insert new table, **Table 4-11: Data fields in the Soil_Profile output table:**
+Insert new table, **Table 4-11: Data fields in the Flux_Extra output table:**
 
 | Data Field Name | Units | Description | Data Field Included |
 |:-:|:-:|:-:|:-:|

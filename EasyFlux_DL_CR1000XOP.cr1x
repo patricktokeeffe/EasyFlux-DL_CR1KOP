@@ -199,6 +199,7 @@ EndConstTable
 Const SENSOR_Rn            = (SENSOR_CNR4 OR SENSOR_NR01 OR SENSOR_SN500)
 Const SENSOR_SWC           = (SENSOR_CS65X OR SENSOR_TDR)
 Const SENSOR_HFP           = (SENSOR_HFP01 OR SENSOR_HFPSC)
+Const SENSOR_EXTRA         = (PROFILE_TDR)
 Const SCAN_INTERVAL_WEIGHT = SLW_SCN_INTV/(60*1000*OUTPUT_INTV)           'Used to calculate the fraction of day time in an scan interval  
 '************* END OF USER-DEFINED CONFIGURATION CONSTANTS ***************
 
@@ -3080,14 +3081,16 @@ Public profile_tmpr(NMBR_PROF)        'Soil temperature.
 Public profile_E(NMBR_PROF)           'Electrical permittivity.
 Public profile_bulkEC(NMBR_PROF)      'Bulk electrical conductivity.
 Public profile_poreEC(NMBR_PROF)      'Pore water electrical conductivity.
-Dim prof_raw(5)                       'Hold TDR raw variables
-Dim ii 'loop iterator
-Dim profile_f(NMBR_PROF)
 Units profile_wc = %
 Units profile_tmpr = deg C
 Units profile_E = unitless
 Units profile_bulkEC = dS m-1
 Units profile_poreEC = dS m-1
+Dim prof_raw(5)                       'Hold TDR raw variables
+Dim ii 'loop iterator
+Dim profile_f(NMBR_PROF)              'Disable flag for stastics
+Dim profsequence_finished_f As Boolean 
+Dim profsequence_disable_f As Boolean 'Flag to decimate in main scan
 '********************* END OF TDR PROFILE VARIABLES   ********************
 #EndIf '(PROFILE_TDR)
 
@@ -4110,19 +4113,23 @@ DataTable (Flux_Notes, TRUE, FLUX_SIZE_CPU)
   FieldNames ("process_time_Max")
   Maximum  (1, buff_depth,   IEEE4, slowsequence_disable_f, FALSE)
   FieldNames ("buff_depth_Max")
+  #If (NOT ONE_FL_TABLE) Then
 EndTable 'Flux_Notes
 '*********************** END OF FLUX_NOTES TABLE  ************************
 
 
-#If (PROFILE_TDR) Then
+#If (SENSOR_EXTRA) Then
 '*************************************************************************
 '*****                    SOIL_PROFILE TABLE                         *****
 '*************************************************************************
-DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
+DataTable (Flux_Extra, TRUE, FLUX_SIZE_CPU)
   DataInterval (0, OUTPUT_INTV, Min, 0)
-  TableFile ("CRD:"&Status.SerialNumber(1,1)&"_Soil_Profile_", 64, -1, 0,DAY_FLUX_CRD, day, 0, 0)
+  TableFile ("CRD:"&Status.SerialNumber(1,1)&"_Flux_Extra_", 64, -1, 0,DAY_FLUX_CRD, day, 0, 0)
+#EndIf '(SENSOR_EXTRA)
+  #EndIf '(NOT ONE_FL_TABLE)
 
-  Average (NMBR_PROF, profile_wc(1), IEEE4, profile_f(1))    'Soil water content
+  #If (PROFILE_TDR) Then
+  Average (NMBR_PROF, profile_wc(1), IEEE4, profsequence_disable_f)'XXXX OR profile_f(1))    'Soil water content
   #If (NMBR_PROF > 5) Then
     FieldNames("SWC_2_2_1,SWC_2_2_2,SWC_2_2_3,SWC_2_2_4,SWC_2_2_5,SWC_2_2_6")
   #ElseIf (NMBR_PROF > 4) Then
@@ -4137,7 +4144,7 @@ DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
     FieldNames("SWC_2_2_1")
   #EndIf
 
-  Average (NMBR_PROF, profile_tmpr(1), IEEE4, profile_f(1))    'Soil temperature
+  Average (NMBR_PROF, profile_tmpr(1), IEEE4, profsequence_disable_f)'XXXX OR profile_f(1))    'Soil temperature
   #If (NMBR_PROF > 5) Then
     FieldNames("TS_TDR_2_2_1,TS_TDR_2_2_2,TS_TDR_2_2_3,TS_TDR_2_2_4,TS_TDR_2_2_5,TS_TDR_2_2_6")
   #ElseIf (NMBR_PROF > 4) Then
@@ -4152,7 +4159,7 @@ DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
     FieldNames("TS_TDR_2_2_1")
   #EndIf
 
-  Average (NMBR_PROF, profile_E(1), IEEE4, profile_f(1))    'Soil permittivity
+  Average (NMBR_PROF, profile_E(1), IEEE4, profsequence_disable_f)'XXXX OR profile_f(1))    'Soil permittivity
   #If (NMBR_PROF > 5) Then
     FieldNames("TDR_E_2_2_1,TDR_E_2_2_2,TDR_E_2_2_3,TDR_E_2_2_4,TDR_E_2_2_5,TDR_E_2_2_6")
   #ElseIf (NMBR_PROF > 4) Then
@@ -4167,7 +4174,7 @@ DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
     FieldNames("TDR_E_2_2_1")
   #EndIf
 
-  Average (NMBR_PROF, profile_bulkEC(1), IEEE4, profile_f(1))    'Soil bulk electrical conductivity
+  Average (NMBR_PROF, profile_bulkEC(1), IEEE4, profsequence_disable_f)'XXXX OR profile_f(1))    'Soil bulk electrical conductivity
   #If (NMBR_PROF > 5) Then
     FieldNames("TDR_bulkEC_2_2_1,TDR_bulkEC_2_2_2,TDR_bulkEC_2_2_3,TDR_bulkEC_2_2_4,TDR_bulkEC_2_2_5,TDR_bulkEC_2_2_6")
   #ElseIf (NMBR_PROF > 4) Then
@@ -4182,7 +4189,7 @@ DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
     FieldNames("TDR_bulkEC_2_2_1")
   #EndIf
 
-  Average (NMBR_PROF, profile_poreEC(1), IEEE4, profile_f(1))    'Soil pore water electrical conductivity
+  Average (NMBR_PROF, profile_poreEC(1), IEEE4, profsequence_disable_f)'XXXX OR profile_f(1))    'Soil pore water electrical conductivity
   #If (NMBR_PROF > 5) Then
     FieldNames("TDR_poreEC_2_2_1,TDR_poreEC_2_2_2,TDR_poreEC_2_2_3,TDR_poreEC_2_2_4,TDR_poreEC_2_2_5,TDR_poreEC_2_2_6")
   #ElseIf (NMBR_PROF > 4) Then
@@ -4196,9 +4203,12 @@ DataTable (Soil_Profile, TRUE, FLUX_SIZE_CPU)
   #Else
     FieldNames("TDR_poreEC_2_2_1")
   #EndIf
+  #EndIf '(PROFILE_TDR)
+  
+#If (SENSOR_EXTRA OR ONE_FL_TABLE) Then
 EndTable
-'*********************** END OF DIAGNOSTIC TABLE *************************
-#EndIf '(PROFILE_TDR)
+#EndIf
+'*********************** END OF FLUX_EXTRA TABLE *************************
   
 
 '*************************************************************************
@@ -9449,6 +9459,9 @@ EndIf '(comp_cov_3d.Output(1, 1) AND comp_cov_3d_5min.Output(1, 1))
      
   #If (NOT ONE_FL_TABLE) Then
   CallTable Flux_Notes
+  #If (SENSOR_EXTRA) Then
+  CallTable Flux_Extra
+  #EndIf
   #EndIf
       
   If (Flux_AmeriFluxFormat.Output(1,1)) Then
@@ -9466,6 +9479,13 @@ EndIf '(comp_cov_3d.Output(1, 1) AND comp_cov_3d_5min.Output(1, 1))
     slowsequence_finished_f = FALSE
     slowsequence_disable_f  = FALSE
   EndIf
+  #If (SENSOR_EXTRA) Then
+  profsequence_disable_f = TRUE
+  If (profsequence_finished_f) Then
+    profsequence_finished_f = FALSE
+    profsequence_disable_f  = FALSE
+  EndIf
+  #EndIf
 
  Else
   scan_count += 1
@@ -10484,7 +10504,7 @@ Scan (PROF_SCN_INTV, Sec, 3, 0)
     If (prof_raw(1) = NAN) Then profile_f(ii) = True
   Next
 
-  CallTable (Soil_Profile)
+  profsequence_finished_f = TRUE
 NextScan 'PROF_SCN_INTV
 #EndIf '(PROFILE_TDR)
 EndProg
