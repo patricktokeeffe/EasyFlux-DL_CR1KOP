@@ -109,6 +109,28 @@ Insert new table, **Table 4-11: Data fields in the Flux_Extra output table:**
 | TDR_bulkEC_2_2_x | dS m-1 | Soil bulk electrical conductivity; x of 1 to 6 is an index for the number of soil sensors | If PROFILE_TDR is used |
 | TDR_poreEC_2_2_x | dS m-1 | Soil pore water electrical conductivity; x of 1 to 6 is an index for the number of soil sensors | If PROFILE_TDR is used |
 
+Another new table, **Biomet**, contains 5-minute statistics for most sensor data, 
+excluding flux outputs and intermediate processing values. Corresponding field names
+are obtained from the same data sources and receive the same quality control in processing.
+Field names are conditionally included only when the relevant sensor(s) is activated.
+The following table summarizes available data fields.
+
+| Description | Sensor(s) | Fields Included |
+|:-:|:-:|:-:|
+| Air temp/RH, e and e<sub>sat</sub> | Sonic/IRGA | Always |
+| Air temp/RH, e and e<sub>sat</sub> | T/RH probe | If T_RH or HYGRO is used |
+| Air pressure & VPD | IRGA | Always |
+| Sonic temperature and wind-related | Sonic anemometer | Always |
+| CO2 & H2O densities and signal strengths | IRGA | Always |
+| Fine-wire temperature | Fine-wire thermocouple | If FW is used |
+| Precipitation | Rain gage | If TE525 is used |
+| Albedo, components of radiation and sensor body temperatures | Component radiometer or pyranometer | If CNR4, NR01, SN500, CS301 or CS320 is used |
+| Photosynthetic flux | Quantum (PAR) sensor | If CS310 is used |
+| Canopy temperature | Infrared thermometer | If SI111 is used |
+| Soil temperature | Soil thermocouples or reflectometers | If TCAV, CS650, CS655 or TDR is used |
+| Soil water content | Soil reflectometers | If CS650, CS655 or TDR is used |
+| Soil heat flux | Heat flux plates | If HFP01 or HFPSC is used |
+
 [^1]: Multi-circuit spring-clamp terminal blocks are recommended for multiplexing wires to the logger terminals.
 [^2]: Powering sensor(s) from the datalogger's +12V source instead of 12V terminal is recommended.
 [^3]: Minor typo in user guide.

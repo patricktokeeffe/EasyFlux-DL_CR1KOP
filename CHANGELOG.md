@@ -10,6 +10,8 @@
   Sensors must be sequentially addressed with a maximum address of 9. 
   Data is acquired independently of gas flux and energy balance, and can be stored in
   separate data table *Flux_Extra* or as additional columns following *Flux_Notes* columns.
+* Adds optional output data table *Biomet*, containing 5-minute statistics of
+  most sensor data, excluding flux outputs and intermediate processing values.
 
 ## 2.01 (2022-07-21)
 

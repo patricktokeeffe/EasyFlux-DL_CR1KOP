@@ -37,6 +37,7 @@ Const DAY_FLUX_CRD             = 30          'Unique: number of days of Flux_Ame
 Const DAY_TSRS_CRD             = 1           'Unique: number of days of Time_Series table data to store in each file on the card. Number of files stored depends on card size.
 Const NTCH_FRQ_SLW As Long     = 60          'Unique: slowsequence analog measurement integration time, 60 for 60Hz (e.g. in US, Canada, etc.) or 50 for 50Hz (e.g. in Europe, China, etc.)
 Const ONE_FL_TABLE As Boolean  = FALSE       'Unique: whether or not all half-hourly or hourly data in Flux_CSFormat and Flux_Notes are stored in one table (FALSE as default).
+Const BIOMET_TABLE As Boolean  = FALSE       'Unique: whether or not to output 5-min biomet table (FALSE as default).
 
 '* GAS ANALYZER AND SONIC ANEMOMETER
 Const IRGASON       As Boolean = TRUE        'Unique: IRGASON. TRUE as default. If TRUE, CSAT3A_EC150 must be set to FALSE 
@@ -4212,6 +4213,269 @@ EndTable
 #EndIf
 '*********************** END OF FLUX_EXTRA TABLE *************************
   
+
+#If (BIOMET_TABLE) Then
+'*************************************************************************
+'*****                     BIOMET DATA TABLE                         *****
+'*************************************************************************
+DataTable (Biomet, TRUE, -1)
+  DataInterval (0, OUTPUT_INTERVAL_SST, min, 0) 'Resamples wind data from steady state test
+  TableFile ("CRD:"&Status.SerialNumber(1,1)&"_Biomet_", 64, -1, 0, DAY_TSRS_CRD, day, 0, LastFileName_Time_Series)
+
+  Average (1, T_amb, IEEE4, irga_amb_tmpr_f)
+  FieldNames ("TA_1_1_1")
+  Average (1, RH_amb,   IEEE4, (irga_disable_f OR (RH_amb > 102) OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("RH_1_1_1")
+  Average (1, T_DP_amb, IEEE4, (irga_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("T_DP_1_1_1")
+  Average (1, e_amb, IEEE4, (irga_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("e_amb")
+  Average (1, e_sat_amb, IEEE4, (irga_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("e_sat_amb")
+  Average (1, Tc,       IEEE4, (irga_disable_f OR sonic_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("TA_1_1_2")
+  Average (1, RH,       IEEE4, (irga_disable_f OR sonic_disable_f OR (RH > 102) OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("RH_1_1_2")
+  Average (1, T_DP,     IEEE4, (irga_disable_f OR sonic_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("T_DP_1_1_2")
+  Average (1, e,     IEEE4, (irga_disable_f OR sonic_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("e")
+  Average (1, e_sat,     IEEE4, (irga_disable_f OR sonic_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("e_sat")
+
+  #If (SENSOR_T_RH OR SENSOR_HYGRO) Then
+  #If (SENSOR_T_RH) Then
+  Average (6, T_probe, IEEE4, FALSE)
+  #ElseIf (SENSOR_HYGRO) Then
+  Average (6, T_probe, IEEE4, slowsequence_disable_f)
+  #EndIf
+  FieldNames("TA_1_1_3,RH_1_1_3,T_DP_1_1_3,e_probe,e_sat_probe,H2O_density_probe")
+  #EndIf '(SENSOR_T_RH OR SENSOR_HYGRO)
+
+  Average (1, press_amb, IEEE4, irga_amb_press_f)
+  FieldNames ("PA")
+  Average (1, (10.0*(e_sat-e)), IEEE4, (irga_disable_f OR sonic_disable_f OR H2O_bad_rng_sig_array(MAX_LAG +1))
+  FieldNames ("VPD") 'hPa
+
+  Average (1, Ts, IEEE4, sonic_disable_f) 'Average sonic temperature  
+  FieldNames ("T_SONIC")
+  StdDev (1, Ts, IEEE4, sonic_disable_f) 'Standard deviation of sonic temperature. 
+  FieldNames ("T_SONIC_SIGMA")  
+  Sample (1, sonic_azimuth, IEEE4)
+  Sample (4, WS_SST, IEEE4) 'Wind data processed in comp_cov_3d_5min
+  FieldNames ("WS,WS_RSLT,WD_SONIC,WD_SIGMA")
+  Sample (1, ((sonic_azimuth - WD_SONIC_SST + 360) MOD 360), IEEE4) 'Convert from CSAT to geographic coordinate system
+  FieldNames ("WD")
+  Maximum (1, U_rslt, IEEE4, sonic_disable_f, FALSE)
+  FieldNames ("WS_MAX")
+
+  Average (1, CO2_density, IEEE4, irga_disable_f)   'Average CO2 mass density in mg m-3
+  FieldNames ("CO2_density")
+  StdDev (1, CO2_density, IEEE4, irga_disable_f)    'CO2 mass density standard deviation in mg m-3
+  FieldNames ("CO2_density_SIGMA")
+  Average (1, H2O_density, IEEE4, irga_disable_f)   'Average H2O mass density in g m-3
+  FieldNames ("H2O_density")
+  StdDev (1, H2O_density, IEEE4, irga_disable_f)    'H2O mass density standard deviation in g m-3
+  FieldNames ("H2O_density_SIGMA")
+  Minimum (1, CO2_sig_strgth, IEEE4, irga_disable_f, FALSE)
+  FieldNames ("CO2_sig_strgth_Min")
+  Minimum (1, H2O_sig_strgth, IEEE4, irga_disable_f, FALSE)
+  FieldNames ("H2O_sig_strgth_Min")
+
+  #If (SENSOR_FW) Then
+  Average (1, FW_Avg, IEEE4, FW_bad_data_flg)  'Fine wire thermocouple
+  FieldNames ("FW")
+  StdDev (1, FW, IEEE4, FW_bad_data_flg)
+  FieldNames ("FW_SIGMA")
+  #EndIf
+   
+  #If (SENSOR_TE525) Then
+  Totalize (1, P, IEEE4, 0)                 'Precipitation
+  FieldNames("P")
+  #EndIf
+  
+  #If (SENSOR_Rn OR SENSOR_CS301 OR SENSOR_CS310 OR SENSOR_CS320) Then 
+  '*** Radiometer data 
+  #EndIf 
+ 
+  #If (SENSOR_Rn) Then
+  Average (1, albedo, IEEE4, slowsequence_disable_f)
+  FieldNames ("ALB")
+  #EndIf
+
+  #If (SENSOR_Rn OR SENSOR_CS301 OR SENSOR_CS320) Then
+  Average (1, SW_IN, IEEE4, slowsequence_disable_f)                      'For use of the same variable in AmeriFlux format for SW incoming radiation from different sensors  
+  FieldNames("SW_IN")
+  #EndIf
+  
+  #If (SENSOR_Rn) Then
+  Average (3, SW_OUT, IEEE4, slowsequence_disable_f)
+  FieldNames ("SW_OUT,LW_IN,LW_OUT")
+  #If (SENSOR_NR01 OR SENSOR_CNR4) Then
+  Average (1, T_nr_Avg, IEEE4, slowsequence_disable_f)                   'Average body temperature of net radiation sensor (T_nr_Avg)
+  FieldNames ("T_nr")
+  #EndIf
+  #If (SENSOR_SN500) Then
+  Average (2, T_nr_Avg, IEEE4, slowsequence_disable_f)                    'Average body temperature of net radiation sensor SN500
+  FieldNames ("T_nr_in,T_nr_out")                                         'T_nr_in and T_nr_out for incoming and outgoing long-wave components, repectively
+  #EndIf
+  #EndIf '(SENSOR_Rn)
+
+  #If (SENSOR_NR01 OR SENSOR_CNR4) Then
+  Average (2, R_LW_in_meas, IEEE4, slowsequence_disable_f)              'Average raw long-wave incoming radiation (R_LW_in_meas) and outgoing radiation (R_LW_out_meas) w/o temperature correction
+  FieldNames ("R_LW_in_meas,R_LW_out_meas")
+  #EndIf
+  
+  #If (SENSOR_CS310) Then
+  Average  (1, PPFD_IN, IEEE4, slowsequence_disable_f)
+  FieldNames("PPFD_IN")
+  #EndIf
+    
+'  Average  (5, sun_azimuth, IEEE4, slowsequence_disable_f)
+'  FieldNames("sun_azimuth,sun_elevation,hour_angle,sun_declination,air_mass_coeff")
+'  Totalize (1, daytime_frac_scan_intv, IEEE4, slowsequence_disable_f)
+'  FieldNames("daytime")
+   
+  #If (CDM_VOLT_116) Then 
+  #If (SENSOR_SI111) Then
+  Average  (1, T_CANOPY, IEEE4, slowsequence_disable_f)                  'Surface temperature (i.e., canopy temperature) 
+  FieldNames ("T_CANOPY")
+  Average  (1, T_SI111_body, IEEE4, slowsequence_disable_f)
+  FieldNames ("T_SI111_body")
+  #EndIf
+  #EndIf
+  
+  #If (SENSOR_TCAV) Then
+  Average (1, TS_1_1_1, IEEE4, slowsequence_disable_f)                   'Soil temperature from TCAV
+  FieldNames ("TS_1_1_1")
+  #If (NMBR_TCAV > 1) Then
+  Average (1, TS_1_1_2, IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_1_1_2")
+  #EndIf
+  #If (NMBR_TCAV > 2) Then
+  Average (1, TS_1_1_3, IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_TCAV)
+  
+  #If ((NOT SENSOR_TCAV) AND SENSOR_SWC)  Then
+  Average (1, TS_1_1_1, IEEE4, slowsequence_disable_f)       'Soil temperature from CS65x or TDR
+  FieldNames ("TS_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, TS_1_1_2, IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, TS_1_1_3, IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_1_1_3")
+  #EndIf
+  #EndIf '((NOT SENSOR_TCAV) AND SENSOR_SWC) 
+  
+  #If (SENSOR_SWC) Then
+  Average (1, SWC_1_1_1, IEEE4, slowsequence_disable_f)     'CS65x or TDR volumetric soil water content.  
+  FieldNames ("SWC_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, SWC_1_1_2, IEEE4, slowsequence_disable_f)
+  FieldNames ("SWC_1_1_2")
+  #EndIf  
+  #If (NMBR_CS65x > 2) Then
+  Average (1, SWC_1_1_3, IEEE4, slowsequence_disable_f)
+  FieldNames ("SWC_1_1_3")
+  #EndIf  
+  #EndIf '(SENSOR_SWC)
+        
+  #If (SENSOR_TCAV AND SENSOR_CS65X)  Then
+  Average (1, cs65x_tmpr(1), IEEE4, slowsequence_disable_f)  'Soil temperature from CS65x
+  FieldNames ("TS_CS65X_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, cs65x_tmpr(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_CS65X_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, cs65x_tmpr(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_CS65X_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_TCAV AND SENSOR_CS65X) 
+  
+  #If (SENSOR_CS65X) Then
+  Average (1, cs65x_ec(1), IEEE4, slowsequence_disable_f)     'Electrical conductivity from CS65x.
+  FieldNames ("cs65x_ec_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, cs65x_ec(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("cs65x_ec_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, cs65x_ec(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("cs65x_ec_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_CS65X)
+
+  #If (SENSOR_TCAV AND SENSOR_TDR)  Then
+  Average (1, tdr_tmpr(1), IEEE4, slowsequence_disable_f)  'Soil temperature from TDR
+  FieldNames ("TS_TDR_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_tmpr(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_TDR_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_tmpr(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TS_TDR_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_TCAV AND SENSOR_TDR) 
+  
+  #If (SENSOR_TDR) Then
+  Average (1, tdr_E(1), IEEE4, slowsequence_disable_f)  'Soil permittivity from TDR
+  FieldNames ("TDR_E_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_E(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_E_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_E(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_E_1_1_3")
+  #EndIf
+  
+  Average (1, tdr_bulkEC(1), IEEE4, slowsequence_disable_f)  'Soil bulk electrical conductivity
+  FieldNames ("TDR_bulkEC_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_bulkEC(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_bulkEC_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_bulkEC(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_bulkEC_1_1_3")
+  #EndIf
+
+  Average (1, tdr_poreEC(1), IEEE4, slowsequence_disable_f)  'Pore water electrical conductivity
+  FieldNames ("TDR_poreEC_1_1_1")
+  #If (NMBR_CS65x > 1) Then
+  Average (1, tdr_poreEC(2), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_poreEC_1_1_2")
+  #EndIf
+  #If (NMBR_CS65x > 2) Then
+  Average (1, tdr_poreEC(3), IEEE4, slowsequence_disable_f)
+  FieldNames ("TDR_poreEC_1_1_3")
+  #EndIf
+  #EndIf '(SENSOR_TCAV AND SENSOR_TDR) 
+
+  #If (SENSOR_HFP) Then
+  #If (SENSOR_HFP01) Then                  '*** soil heat flux plat data 
+  Average (NMBR_HFP, shf_plate(1), IEEE4, slowsequence_disable_f)
+  #EndIf
+  #If (SENSOR_HFPSC) Then
+  Average (NMBR_HFP, shf_plate(1), IEEE4, (shf_cal_on_f OR slowsequence_disable_f))
+  #EndIf
+  #EndIf
+
+'Averaging these won't make sense - both rely on terms calculated at 30-min intervals
+'  #If (SENSOR_HFP AND SENSOR_SWC) Then
+'  Sample (NMBR_HFP, G_1_1_1,  IEEE4)       'Soil heat flux at the ground surface
+'  Sample (NMBR_HFP, SG_1_1_1, IEEE4)       'The soil heat flux into soil as heat storage above soil heat flux plates over an averaging interval
+'  #EndIf
+EndTable
+'*********************** END OF BIOMET DATA TABLE ************************
+#EndIf '(BIOMET_TABLE)
+
 
 '*************************************************************************
 '*****                  TIME SERIES DATA TABLE                       *****
@@ -8401,6 +8665,9 @@ If (scan_count >= (OFFSET + MAX_LAG)) Then
   '***** The data for Steady State Test (SST)
   If (comp_cov_3d_5min.Output(1, 1)) Then
     GetRecord (Ux_Avg_SST, comp_cov_3d_5min, 1)
+    #If (BIOMET_TABLE) Then
+    CallTable Biomet
+    #EndIf
 
     If (NOT Planar_Fit_flg) Then
      'Double coordinate rotations
